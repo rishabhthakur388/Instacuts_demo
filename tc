@@ -1,0 +1,147 @@
+// address_1:req.body.address_1,
+// address_2:req.body.address_2,
+// city:req.body.city,
+// state:req.body.state,
+// ssn_number:req.body.ssn_number,
+// cosmetology_license:req.body.cosmetology_license,
+// driving_license:req.body.driving_license,
+// profile_pic:req.body.profile_pic,
+// zip_code:req.body.zip_code,
+// gps:req.body.gps,
+// confirm_acc_status:req.body.confirm_acc_status,
+
+
+
+
+//  about_me: DataTypes.STRING,
+//     languages: DataTypes.STRING,
+//     skills: DataTypes.STRING,
+//     images: DataTypes.STRING,
+//     video: DataTypes.STRING,
+
+
+    
+// exports.userDetails = async (req, res) => {
+//     try {
+//         const reqBody = req.body;
+//         if (req.body.stage == 1) {
+//             const findUser = await SIGNUP.findOne({ where: { mobile_number: reqBody.mobile_number } });
+//             if (!findUser) { return resp.failedResponseWithMsg(res, "USER_NOT_FOUND"); }
+//              const user = await SIGNUP.update({
+//                     full_name: reqBody.full_name,
+//                     email: reqBody.email,
+//                     password: reqBody.password,
+//                     gender: reqBody.gender,
+//                     dob: reqBody.dob,
+//                     service_category: reqBody.service_category,
+//                     specialization: req.body.specialization,
+//                     experience: req.body.experience
+//                 }, { where: { mobile_number: req.body.mobile_number } });
+//                 await SIGNUP.update({confirm_acc_status:1},{ where:{mobile_number:req.body.mobile_number}}) 
+//                 return resp.successResponse(res, "ADDED_SUCCESSFULLY", user);
+//         }
+//         else if (req.body.stage == 2) {
+//             const findUser = await SIGNUP.findOne({ where: { mobile_number: reqBody.mobile_number } });
+//             if (!findUser) { return resp.failedResponseWithMsg(res, "USER_NOT_FOUND"); }
+//             else {
+//                 await SIGNUP.update({
+//                     address_1: req.body.address_1,
+//                     address_2: req.body.address_2,
+//                     city: req.body.city,
+//                     state: req.body.state,
+//                     zip_code: req.body.zip_code,
+//                     gps: req.body.gps
+//                 }, { where: { mobile_number: req.body.mobile_number } });
+//                 await SIGNUP.update({confirm_acc_status:2},{ where:{mobile_number:req.body.mobile_number}})
+//                 return resp.successResponse(res, "ADDED_SUCCESSFULLY");
+//             }
+//         }
+//         else if (req.body.stage == 3) {
+//             const findUser = await SIGNUP.findOne({ where: { mobile_number: reqBody.mobile_number } });
+//             if (!findUser) { return resp.failedResponseWithMsg(res, "USER_NOT_FOUND"); }
+//             else {
+//                 await SIGNUP.update({
+//                     ssn_number: req.body.ssn_number,
+//                     cosmetology_license: req.body.cosmetology_license,
+//                     driving_license: req.body.driving_license,
+//                     profile_pic: req.body.profile_pic,
+//                     confirm_acc_status: req.body.confirm_acc_status
+//                 }, { where: { mobile_number: req.body.mobile_number } });
+//                 return resp.successResponse(res, "ADDED_SUCCESSFULLY");
+//             };
+//         };
+//     } catch (error) {
+//         return resp.failedResponse(res, error.message);
+//     }
+// }
+
+
+try {
+    const finduser = await CUSTOMERS.findOne({ where: { id: req.currentUser.id } })
+    if (!finduser) {
+        return resp.failedResponseWithMsg(res, "USER_NOT_FOUND")
+    };
+
+    const latitude = finduser.latitude;
+    const longitude = finduser.longitude;
+    const work_radius = finduser.work_radius;
+    const haversine = `(
+                             6371 * acos(                       
+                             cos(radians(${latitude}))
+                              * cos(radians(latitude))
+                              * cos(radians(longitude) - radians(${longitude}))
+                              + sin(radians(${latitude})) * sin(radians(latitude))
+                                )
+                       )`;
+
+                    console.log(haversine);
+    // const customers = await CUSTOMERS.findAll({
+    //     attributes:[
+    //         'id',
+    //         'latitude',
+    //         'longitude' 
+    //         // [db.sequelize.literal(haversine), 'work_radius'],
+    //         ],
+    // })
+
+    const users = await USER_PREFERENCES.findAll({
+        attributes: ['barber_id', 'work_radius'],
+
+        include: {
+            model: SIGNUP, attributes: [
+                'id',
+                'latitude',
+                'longitude',
+                [db.sequelize.literal(haversine), 'work_radius'],
+            ],
+        },
+        // where: { work_radius:3 },
+        order: db.sequelize.col('work_radius'),
+        having: db.sequelize.literal(`work_radius <= ${work_radius}`),
+        limit: 5
+    });
+
+    return resp.successResponse(res, "SUCCESS", users);
+} catch (error) {
+    return resp.failedResponse(res, error.message);
+}
+
+
+
+
+// SELECT latitude,longitude, round((  6371 * acos(cos(radians('19.385')) * cos(radians(latitude)) * cos(radians(longitude) - radians('32.5399')) + sin(radians('19.385')) * sin(radians(latitude)))),0) AS dis 
+// FROM instacuts.users;
+
+
+
+
+function generateUniqueCode(length) {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+    const uniqueCode = Array.from({ length }, () => {
+        const randomIndex = Math.floor(Math.random() * characters.length);
+        return characters.charAt(randomIndex);
+    }).join('');
+
+    return uniqueCode;
+};
